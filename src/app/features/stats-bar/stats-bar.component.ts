@@ -1,17 +1,19 @@
 import {
   Component,
   input,
+  computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DashboardStats } from '../../core/models/trash-can.model';
 
-interface StatWidget {
+interface Widget {
+  id: string;
   label: string;
   value: number;
+  total: number;
   icon: string;
-  colorClass: string;
-  description: string;
+  mod: string;
 }
 
 @Component({
@@ -20,154 +22,128 @@ interface StatWidget {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="stats-bar" aria-label="Resumo do monitoramento">
-      @for (widget of widgets(); track widget.label) {
-        <div class="widget" [class]="'widget widget--' + widget.colorClass">
-          <div class="widget__icon">{{ widget.icon }}</div>
+    <section class="stats" role="region" aria-label="Resumo do monitoramento">
+      @for (w of widgets(); track w.id) {
+        <div class="widget widget--{{ w.mod }}" [attr.aria-label]="w.value + ' ' + w.label">
+          <div class="widget__icon" aria-hidden="true">{{ w.icon }}</div>
           <div class="widget__body">
-            <div class="widget__value">{{ widget.value }}</div>
-            <div class="widget__label">{{ widget.label }}</div>
+            <span class="widget__val">{{ w.value }}</span>
+            <span class="widget__label">{{ w.label }}</span>
           </div>
-          <div class="widget__bar" [style.width.%]="barWidth(widget.value)"></div>
+          <div class="widget__progress" aria-hidden="true">
+            <div
+              class="widget__progress-fill"
+              [style.width.%]="pct(w.value, w.total)"
+            ></div>
+          </div>
         </div>
       }
     </section>
   `,
   styles: [`
-    .stats-bar {
+    .stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      width: 100%;
+      gap: 12px;
     }
 
-    @media (max-width: 768px) {
-      .stats-bar {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 400px) {
-      .stats-bar {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-      }
-    }
+    @media (max-width: 860px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 400px) { .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
 
     .widget {
       position: relative;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 18px;
-      padding: 18px 20px 16px;
+      background: var(--color-bg-widget);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px 20px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       overflow: hidden;
-      transition: transform 0.25s ease;
+      box-shadow: var(--card-shadow);
+      transition: transform var(--transition-base), box-shadow var(--transition-base);
+      cursor: default;
     }
 
-    .widget:hover {
-      transform: translateY(-2px);
-    }
+    .widget:hover { transform: translateY(-2px); box-shadow: var(--card-shadow-hover); }
 
-    .widget__icon {
-      font-size: 1.8rem;
-      flex-shrink: 0;
-      line-height: 1;
-    }
+    .widget__icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
 
     .widget__body {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      z-index: 1;
+      gap: 1px;
+      min-width: 0;
     }
 
-    .widget__value {
-      font-size: 2rem;
+    .widget__val {
+      font-size: 2.2rem;
       font-weight: 900;
       line-height: 1;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      transition: color var(--transition-slow);
     }
 
     .widget__label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      opacity: 0.6;
+      color: var(--color-text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Bottom progress bar */
+    .widget__progress {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--color-border);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+
+    .widget__progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+      min-width: 4px;
     }
 
     /* Color variants */
-    .widget--blue .widget__value { color: #60a5fa; }
-    .widget--blue { border-color: rgba(96,165,250,0.2); }
+    .widget--blue  .widget__val { color: #60a5fa; }
+    .widget--blue  .widget__progress-fill { background: #60a5fa; }
+    .widget--blue  { border-left: 3px solid rgba(96,165,250,0.3); }
 
-    .widget--green .widget__value { color: #22c55e; }
-    .widget--green { border-color: rgba(34,197,94,0.2); }
+    .widget--green .widget__val { color: var(--color-empty-light); }
+    .widget--green .widget__progress-fill { background: var(--color-empty-light); }
+    .widget--green { border-left: 3px solid var(--color-empty-border); }
 
-    .widget--yellow .widget__value { color: #eab308; }
-    .widget--yellow { border-color: rgba(234,179,8,0.2); }
+    .widget--yellow .widget__val { color: var(--color-medium-light); }
+    .widget--yellow .widget__progress-fill { background: var(--color-medium-light); }
+    .widget--yellow { border-left: 3px solid var(--color-medium-border); }
 
-    .widget--red .widget__value { color: #ef4444; }
-    .widget--red { border-color: rgba(239,68,68,0.2); }
-
-    /* Decorative bar at bottom */
-    .widget__bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 3px;
-      border-radius: 0 2px 0 0;
-      transition: width 0.6s ease;
-    }
-
-    .widget--blue .widget__bar { background: #60a5fa; }
-    .widget--green .widget__bar { background: #22c55e; }
-    .widget--yellow .widget__bar { background: #eab308; }
-    .widget--red .widget__bar { background: #ef4444; }
+    .widget--red  .widget__val { color: var(--color-critical-light); }
+    .widget--red  .widget__progress-fill { background: var(--color-critical-light); }
+    .widget--red  { border-left: 3px solid var(--color-critical-border); }
   `],
 })
 export class StatsBarComponent {
   readonly stats = input.required<DashboardStats>();
 
-  readonly widgets = () => {
+  readonly widgets = computed<Widget[]>(() => {
     const s = this.stats();
-    const widgets: StatWidget[] = [
-      {
-        label: 'Monitoradas',
-        value: s.total,
-        icon: '🗑️',
-        colorClass: 'blue',
-        description: 'Total de lixeiras',
-      },
-      {
-        label: 'Normal',
-        value: s.empty + s.medium,
-        icon: '✅',
-        colorClass: 'green',
-        description: 'Vazias ou nível médio',
-      },
-      {
-        label: 'Atenção',
-        value: s.warning,
-        icon: '⚠️',
-        colorClass: 'yellow',
-        description: 'Quase cheias',
-      },
-      {
-        label: 'Críticas',
-        value: s.critical,
-        icon: '🚨',
-        colorClass: 'red',
-        description: 'Precisam ser esvaziadas',
-      },
+    return [
+      { id: 'total',   label: 'Monitoradas', value: s.total,              total: s.total, icon: '🗑️', mod: 'blue' },
+      { id: 'normal',  label: 'Normal',       value: s.empty + s.medium,  total: s.total, icon: '✅', mod: 'green' },
+      { id: 'attn',    label: 'Atenção',      value: s.warning,            total: s.total, icon: '⚠️', mod: 'yellow' },
+      { id: 'crit',    label: 'Críticas',     value: s.critical,           total: s.total, icon: '🚨', mod: 'red' },
     ];
-    return widgets;
-  };
+  });
 
-  barWidth(value: number): number {
-    const total = this.stats().total || 1;
-    return Math.round((value / total) * 100);
+  pct(value: number, total: number): number {
+    return total === 0 ? 0 : Math.round((value / total) * 100);
   }
 }

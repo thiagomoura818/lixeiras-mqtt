@@ -6,13 +6,28 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
+    <!-- Prevent theme flash: apply theme before first paint -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('smartbin_theme');
+          var sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', saved || sys);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+
     <!-- SEO -->
     <meta name="description" content="Monitoramento em tempo real de lixeiras inteligentes via MQTT. Projeto acadêmico orientado pelo Prof. Elder de Oliveira Rodrigues." />
-    <meta name="keywords" content="lixeiras inteligentes, IoT, MQTT, monitoramento, smart trash" />
+    <meta name="keywords" content="lixeiras inteligentes, IoT, MQTT, monitoramento, smart trash, sensor" />
     <meta name="author" content="SmartBin Monitor" />
+    <meta name="robots" content="index, follow" />
 
     <!-- PWA -->
-    <meta name="theme-color" content="#07070f" />
+    <meta name="theme-color" content="#060a12" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -25,10 +40,15 @@
     <meta property="og:title" content="SmartBin Monitor — Lixeiras Inteligentes" />
     <meta property="og:description" content="Monitoramento em tempo real de lixeiras inteligentes via MQTT." />
 
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♻️</text></svg>" />
+    <link rel="icon" type="image/svg+xml"
+          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♻️</text></svg>" />
   </head>
   <body>
     <app-root></app-root>
-    <noscript>Por favor, habilite o JavaScript para usar o SmartBin Monitor.</noscript>
+    <noscript>
+      <p style="font-family:sans-serif;text-align:center;padding:2rem">
+        Por favor, habilite o JavaScript para usar o SmartBin Monitor.
+      </p>
+    </noscript>
   </body>
 </html>

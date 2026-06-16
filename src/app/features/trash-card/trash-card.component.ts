@@ -11,95 +11,118 @@ import {
   getStatusColor,
   getStatusEmoji,
 } from '../../core/models/trash-can.model';
-import { BatteryComponent } from '../battery/battery.component';
+import { TrashIndicatorComponent } from '../trash-indicator/trash-indicator.component';
 
 @Component({
   selector: 'app-trash-card',
   standalone: true,
-  imports: [CommonModule, BatteryComponent],
+  imports: [CommonModule, TrashIndicatorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article
       class="card"
       [class]="'card card--' + can().status"
-      [attr.aria-label]="'Lixeira ' + can().groupName"
+      [attr.aria-label]="can().groupName + ': ' + can().percentage + '% — ' + statusLabel()"
     >
+      <!-- Colored accent bar -->
+      <div class="card__accent" [style.background]="statusColor()"></div>
+
       <!-- Header -->
-      <div class="card__header">
-        <div class="card__title-group">
-          <span class="card__emoji">🗑️</span>
-          <h2 class="card__title">{{ can().groupName }}</h2>
+      <header class="card__header">
+        <div class="card__name-group">
+          <span class="card__icon" aria-hidden="true">🗑️</span>
+          <h2 class="card__name">{{ can().groupName }}</h2>
         </div>
-        <div class="card__connection" [class.connected]="can().connected">
-          <span class="card__dot"></span>
-          <span class="card__conn-label">{{ can().connected ? 'Online' : 'Offline' }}</span>
+        <div class="card__conn" [class.online]="can().connected" [attr.aria-label]="can().connected ? 'Online' : 'Offline'">
+          <span class="card__conn-dot" aria-hidden="true"></span>
+          <span class="card__conn-text">{{ can().connected ? 'Online' : 'Offline' }}</span>
         </div>
+      </header>
+
+      <!-- Trash Level Indicator -->
+      <div class="card__bin-wrap">
+        <app-trash-indicator [percentage]="can().percentage" class="card__bin" aria-hidden="true"/>
       </div>
 
-      <!-- Battery -->
-      <div class="card__battery-area">
-        <app-battery [percentage]="can().percentage" class="card__battery" />
+      <!-- Percentage -->
+      <div class="card__pct-row">
+        <span class="card__pct" [style.color]="statusColor()">
+          {{ can().percentage }}<small class="card__pct-sym">%</small>
+        </span>
       </div>
 
-      <!-- Stats -->
-      <div class="card__stats">
-        <div class="card__percentage" [style.color]="statusColor()">
-          {{ can().percentage }}<span class="card__pct-symbol">%</span>
-        </div>
-
-        <div class="card__status-badge" [class]="'badge badge--' + can().status">
-          <span class="badge__emoji">{{ statusEmoji() }}</span>
-          <span class="badge__label">{{ statusLabel() }}</span>
-        </div>
-
-        <div class="card__meta">
-          <div class="card__meta-row">
-            <span class="card__meta-label">Sensor</span>
-            <span class="card__meta-value">{{ can().value }} mm</span>
-          </div>
-          <div class="card__meta-row">
-            <span class="card__meta-label">Atualizado</span>
-            <span class="card__meta-value">{{ formattedTime() }}</span>
-          </div>
-        </div>
+      <!-- Status badge -->
+      <div class="card__badge-row">
+        <span class="card__badge" [class]="'card__badge card__badge--' + can().status" role="status">
+          <span aria-hidden="true">{{ statusEmoji() }}</span>
+          {{ statusLabel() }}
+        </span>
       </div>
 
-      <!-- Critical overlay glow -->
+      <!-- Meta info -->
+      <dl class="card__meta">
+        <div class="card__meta-item">
+          <dt class="card__meta-label">Sensor</dt>
+          <dd class="card__meta-val">{{ can().value }} mm</dd>
+        </div>
+        <div class="card__meta-item">
+          <dt class="card__meta-label">Atualizado</dt>
+          <dd class="card__meta-val">{{ lastUpdateText() }}</dd>
+        </div>
+      </dl>
+
+      <!-- Critical glow overlay -->
       @if (can().status === 'critical') {
-        <div class="card__critical-glow"></div>
+        <div class="card__crit-glow" aria-hidden="true"></div>
       }
     </article>
   `,
   styles: [`
     .card {
       position: relative;
-      background: rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 24px;
-      padding: 24px 20px 28px;
+      background: var(--color-bg-card);
+      backdrop-filter: var(--backdrop-blur);
+      -webkit-backdrop-filter: var(--backdrop-blur);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 0 20px 24px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       overflow: hidden;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      cursor: default;
+      box-shadow: var(--card-shadow);
+      transition: transform var(--transition-base), box-shadow var(--transition-base),
+                  border-color var(--transition-base);
     }
 
     .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      transform: translateY(-5px);
+      box-shadow: var(--card-shadow-hover);
+      border-color: var(--color-border-hover);
+    }
+
+    .card:focus-within {
+      outline: 2px solid var(--color-empty-light);
+      outline-offset: 2px;
     }
 
     .card--critical {
-      border-color: rgba(239, 68, 68, 0.3);
-      animation: card-pulse 2s ease-in-out infinite;
+      border-color: var(--color-critical-border);
+      animation: card-alert 2.4s ease-in-out infinite;
     }
 
-    @keyframes card-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.1); }
-      50% { box-shadow: 0 0 40px 8px rgba(239,68,68,0.15); }
+    @keyframes card-alert {
+      0%, 100% { box-shadow: var(--card-shadow); }
+      50% { box-shadow: var(--card-shadow), 0 0 48px rgba(239,68,68,0.14); }
+    }
+
+    /* Accent bar */
+    .card__accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      transition: background var(--transition-slow);
     }
 
     /* Header */
@@ -107,183 +130,167 @@ import { BatteryComponent } from '../battery/battery.component';
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding-top: 20px;
     }
 
-    .card__title-group {
+    .card__name-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .card__emoji {
-      font-size: 1.5rem;
-    }
+    .card__icon { font-size: 1.3rem; line-height: 1; }
 
-    .card__title {
-      font-size: 1.1rem;
+    .card__name {
+      font-size: 1rem;
       font-weight: 700;
-      color: #f1f5f9;
-      margin: 0;
+      color: var(--color-text-1);
       letter-spacing: -0.01em;
     }
 
-    .card__connection {
+    /* Connection indicator */
+    .card__conn {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
-    .card__dot {
-      width: 8px;
-      height: 8px;
+    .card__conn-dot {
+      width: 7px; height: 7px;
       border-radius: 50%;
-      background: #4b5563;
-      transition: background 0.4s;
+      background: var(--color-text-3);
+      transition: background var(--transition-base), box-shadow var(--transition-base);
     }
 
-    .connected .card__dot {
-      background: #22c55e;
-      box-shadow: 0 0 8px #22c55e;
-      animation: blink 2s ease-in-out infinite;
+    .card__conn.online .card__conn-dot {
+      background: var(--color-online);
+      box-shadow: 0 0 6px var(--color-online);
+      animation: pulse-online 2.5s ease-in-out infinite;
     }
 
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    @keyframes pulse-online {
+      0%, 100% { box-shadow: 0 0 4px var(--color-online); }
+      50% { box-shadow: 0 0 12px var(--color-online); }
     }
 
-    .card__conn-label {
-      font-size: 0.7rem;
-      font-weight: 500;
-      color: #6b7280;
+    .card__conn-text {
+      font-size: 0.68rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.07em;
+      color: var(--color-text-3);
+      transition: color var(--transition-base);
     }
 
-    .connected .card__conn-label {
-      color: #22c55e;
-    }
+    .card__conn.online .card__conn-text { color: var(--color-online); }
 
-    /* Battery area */
-    .card__battery-area {
+    /* Trash Indicator */
+    .card__bin-wrap {
       display: flex;
       align-items: center;
       justify-content: center;
       height: 220px;
-      padding: 8px 0;
     }
 
-    .card__battery {
+    .card__bin {
       height: 200px;
-      width: 90px;
+      width: 120px;
     }
 
-    /* Stats */
-    .card__stats {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
+    /* Percentage */
+    .card__pct-row {
+      text-align: center;
     }
 
-    .card__percentage {
-      font-size: 3.5rem;
+    .card__pct {
+      font-size: 3.8rem;
       font-weight: 900;
       line-height: 1;
-      letter-spacing: -0.03em;
-      transition: color 0.5s ease;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      transition: color var(--transition-slow);
     }
 
-    .card__pct-symbol {
-      font-size: 1.8rem;
-      font-weight: 600;
-      opacity: 0.7;
+    .card__pct-sym {
+      font-size: 1.9rem;
+      font-weight: 700;
+      opacity: 0.65;
     }
 
-    /* Status badge */
-    .badge {
+    /* Badge */
+    .card__badge-row { display: flex; justify-content: center; }
+
+    .card__badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 16px;
+      padding: 5px 16px;
       border-radius: 999px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      transition: all 0.4s ease;
+      border: 1px solid transparent;
+      transition: all var(--transition-base);
     }
 
-    .badge--empty {
-      background: rgba(34, 197, 94, 0.15);
-      color: #22c55e;
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    .badge--medium {
-      background: rgba(234, 179, 8, 0.15);
-      color: #eab308;
-      border: 1px solid rgba(234, 179, 8, 0.3);
-    }
-    .badge--warning {
-      background: rgba(249, 115, 22, 0.15);
-      color: #f97316;
-      border: 1px solid rgba(249, 115, 22, 0.3);
-    }
-    .badge--critical {
-      background: rgba(239, 68, 68, 0.15);
-      color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      animation: badge-pulse 1.4s ease-in-out infinite;
+    .card__badge--empty  { background: var(--color-empty-bg);   color: var(--color-empty-light);   border-color: var(--color-empty-border); }
+    .card__badge--medium { background: var(--color-medium-bg);  color: var(--color-medium-light);  border-color: var(--color-medium-border); }
+    .card__badge--warning{ background: var(--color-warning-bg); color: var(--color-warning-light); border-color: var(--color-warning-border); }
+    .card__badge--critical{
+      background: var(--color-critical-bg);
+      color: var(--color-critical-light);
+      border-color: var(--color-critical-border);
+      animation: badge-pulse 1.6s ease-in-out infinite;
     }
 
     @keyframes badge-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
-      50% { box-shadow: 0 0 12px 4px rgba(239,68,68,0.2); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.2); }
+      50% { box-shadow: 0 0 14px 3px rgba(239,68,68,0.2); }
     }
 
     /* Meta */
     .card__meta {
-      width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.04);
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.06);
+      gap: 5px;
+      padding: 11px 14px;
+      background: var(--color-surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
     }
 
-    .card__meta-row {
+    .card__meta-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
     .card__meta-label {
-      font-size: 0.75rem;
-      color: #6b7280;
-      font-weight: 500;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-text-3);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
     }
 
-    .card__meta-value {
-      font-size: 0.8rem;
-      color: #d1d5db;
+    .card__meta-val {
+      font-size: 0.78rem;
       font-weight: 600;
+      color: var(--color-text-2);
       font-variant-numeric: tabular-nums;
     }
 
-    /* Critical glow overlay */
-    .card__critical-glow {
+    /* Critical glow */
+    .card__crit-glow {
       position: absolute;
       inset: 0;
-      border-radius: 24px;
+      border-radius: var(--radius-lg);
       pointer-events: none;
-      background: radial-gradient(ellipse at center, rgba(239,68,68,0.06) 0%, transparent 70%);
-      animation: glow-pulse 2s ease-in-out infinite;
+      background: radial-gradient(ellipse at center bottom, rgba(239,68,68,0.08) 0%, transparent 65%);
+      animation: glow-breathe 2.4s ease-in-out infinite;
     }
 
-    @keyframes glow-pulse {
-      0%, 100% { opacity: 0.5; }
+    @keyframes glow-breathe {
+      0%, 100% { opacity: 0.4; }
       50% { opacity: 1; }
     }
   `],
@@ -295,13 +302,9 @@ export class TrashCardComponent {
   readonly statusColor = computed(() => getStatusColor(this.can().status));
   readonly statusEmoji = computed(() => getStatusEmoji(this.can().status));
 
-  readonly formattedTime = computed(() => {
+  readonly lastUpdateText = computed(() => {
     const d = this.can().lastUpdate;
     if (!d) return '—';
-    return d.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   });
 }
